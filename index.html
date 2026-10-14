@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
   :root{
@@ -37,6 +38,9 @@
   .seg button[aria-pressed="true"]{background:var(--ink);color:#fff}
   .factor{display:flex;align-items:center;gap:8px;font-size:15px}
   .factor input{width:72px;padding:7px 8px;border:1px solid var(--ink);border-radius:4px;font:inherit;background:#fff}
+  .dl{background:transparent;color:var(--ink);border:1px solid var(--ink);padding:7px 14px;border-radius:4px;font-size:14px}
+  .dl:hover{background:var(--ink);color:#fff}
+  .tools{margin:0 0 14px}
   .linkbtn{background:none;border:0;color:var(--brass-dark);text-decoration:underline;padding:0;font-size:14px}
   .chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
   .chip{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:#fff;border-radius:999px;padding:5px 12px;font-size:14px}
@@ -98,6 +102,7 @@
     </label>
   </div>
 
+  <div class="tools"><button class="dl" id="dl-weekly">Download weekly data as Excel</button></div>
   <div class="chips" id="chips" aria-label="Choose which sites to show"></div>
   <div class="chartbox"><canvas id="trend" role="img" aria-label="Line chart of weekly visits for each site"></canvas></div>
 </section>
@@ -105,6 +110,7 @@
 <section aria-labelledby="table-h">
   <h2 id="table-h">Latest week compared</h2>
   <p class="sub" id="table-sub">Sign in to see the comparison.</p>
+  <div class="tools"><button class="dl" id="dl-table">Download as Excel</button></div>
   <div class="tablewrap">
     <table id="tbl">
       <thead><tr>
@@ -118,6 +124,7 @@
 <section aria-labelledby="spend-h">
   <h2 id="spend-h">Estimated paid search spend</h2>
   <p class="sub" id="spend-sub">Sign in to see the estimates.</p>
+  <div class="tools"><button class="dl" id="dl-spend">Download as Excel</button></div>
   <div class="cpcs">
     <label>Cost per paid visit <input id="cpc-mid" type="number" step="0.01" min="0.01" value="0.72"></label>
     <button class="linkbtn" id="cpc-reset">Reset to &pound;0.72</button>
@@ -125,7 +132,7 @@
   <div class="tablewrap">
     <table id="spendtbl">
       <thead><tr>
-        <th>Site</th><th>Paid search share</th><th>UK share</th><th>Paid search visits</th><th>Estimated spend</th><th>Estimated average weekly spend</th><th>Actual spend (our Google Ads)</th>
+        <th>Site</th><th>Paid search share</th><th>UK share</th><th>Paid search visits</th><th>Estimated spend</th><th>Estimated average weekly spend</th><th>Actual spend (our Google Ads)</th><th>Actual average weekly spend (our Google Ads)</th>
       </tr></thead>
       <tbody></tbody>
     </table>
@@ -222,6 +229,7 @@ let weeks = [], domains = [];
 let colours = {}, visible = new Set();
 let mode = 'adj';
 let mix = [], mixError = null;
+let tblData = null, spendData = null;
 const DEFAULT_CPC = {mid:0.72};
 let trendChart = null, calChart = null;
 
@@ -336,6 +344,10 @@ function drawTable(){
     return {d, l, chg: (l !== null && p) ? (l/p - 1) : null, avg: vs.reduce((a,b)=>a+b,0)/vs.length};
   }).sort((a,b) => (b.l||0) - (a.l||0));
   $('table-sub').textContent = 'Week starting ' + fmtDate(last) + (mode === 'adj' ? ', competitors adjusted by ' + factor().toFixed(2) + '.' : ', competitors as Similarweb reports them.') + ' Our own site shows actual GA4 sessions.';
+  tblData = [['Site','Visits, latest week','Change on previous week (%)','Average per week','Size compared with B&S (x)']].concat(
+    list.map(r => [label(r.d), r.l ? round100(r.l) : '', r.chg === null ? '' : +(r.chg*100).toFixed(1), round100(r.avg),
+      (r.d === US || !(bs && r.l)) ? '' : +(r.l/bs).toFixed(1)]));
+  tblData.latest = last;
   const tb = $('tbl').querySelector('tbody'); tb.innerHTML = '';
   list.forEach(r => {
     const tr = document.createElement('tr'); if (r.d === US) tr.className = 'us';
@@ -363,6 +375,7 @@ const money = n => n >= 1e6 ? '\u00A3' + (n/1e6).toFixed(2) + 'm' : '\u00A3' + M
 function drawSpend(){
   const tb = $('spendtbl').querySelector('tbody'); tb.innerHTML = '';
   if (!mix.length){
+    spendData = null;
     $('spend-sub').textContent = mixError ? 'Could not load the channel mix table: ' + mixError : 'No channel mix data yet. Upload it to competitor_traffic.channel_mix.';
     return;
   }
@@ -376,6 +389,11 @@ function drawSpend(){
   const max = Math.max(...list.filter(r => r.d !== US).map(r => r.mid), 1);
   const m0 = mix[0];
   $('spend-sub').textContent = 'Estimated spend on paid search, ' + fmtDate(m0.start) + ' to ' + fmtDate(m0.end) + ', using the adjustment factor of ' + factor().toFixed(2) + ' above.';
+  const pw = Math.max(weeks.filter(w => w >= m0.start && w <= m0.end).length, 1);
+  spendData = [['Site','Paid search share (%)','UK share (%)','Paid search visits','Estimated spend (GBP)','Estimated average weekly spend (GBP)','Actual spend, our Google Ads (GBP)','Actual average weekly spend, our Google Ads (GBP)']].concat(
+    list.map(r => { const u = r.d === US; return [r.d, u ? '' : r.paid, u ? '' : r.uk, u ? '' : Math.round(r.pv), u ? '' : Math.round(r.mid), u ? '' : Math.round(r.mid/r.weeks),
+      r.actual ? Math.round(r.actual) : '', r.actual ? Math.round(r.actual/pw) : '']; }));
+  spendData.period = fmtDate(m0.start) + ' to ' + fmtDate(m0.end);
   list.forEach(r => {
     const tr = document.createElement('tr'); if (r.d === US) tr.className = 'us';
     const isUs = r.d === US;
@@ -383,10 +401,51 @@ function drawSpend(){
       (isUs
         ? '<td></td><td></td>'
         : '<td><span class="bar" style="width:' + Math.round(r.mid/max*80) + 'px"></span><strong>' + money(r.mid) + '</strong></td><td>' + money(r.mid/r.weeks) + '</td>') +
-      '<td>' + (r.actual ? '<strong>' + money(r.actual) + '</strong>' : '') + '</td>';
+      '<td>' + (r.actual ? '<strong>' + money(r.actual) + '</strong>' : '') + '</td><td>' + (r.actual ? '<strong>' + money(r.actual/pw) + '</strong>' : '') + '</td>';
     tb.appendChild(tr);
   });
 }
+
+/* ---------- Excel downloads ---------- */
+function notesSheet(extra){
+  const base = [
+    ['Source', 'Competitors: Similarweb weekly estimates. barkerandstonehouse.co.uk: actual GA4 sessions.'],
+    ['Adjustment applied to competitors', mode === 'adj' ? factor().toFixed(2) + ' (Similarweb x factor)' : 'None (as Similarweb reports)'],
+    ['Weeks', 'Wednesday to Tuesday'],
+    ['Downloaded', new Date().toLocaleDateString('en-GB')]
+  ];
+  return base.concat(extra || []);
+}
+function download(file, sheets){
+  if (!window.XLSX){ setStatus('The Excel export is still loading. Try again in a moment.', true); return; }
+  const wb = XLSX.utils.book_new();
+  sheets.forEach(([name, aoa]) => {
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = (aoa[0] || []).map((c, i) => ({wch: Math.max(14, Math.min(44, String(c).length + 2))}));
+    XLSX.utils.book_append_sheet(wb, ws, name);
+  });
+  XLSX.writeFile(wb, file);
+}
+const stamp = () => new Date().toISOString().slice(0,10);
+
+$('dl-weekly').onclick = () => {
+  if (!rows.length){ setStatus('Sign in to load the data first.', true); return; }
+  const aoa = [['Week starting'].concat(domains.map(label))].concat(
+    weeks.map(w => [w].concat(domains.map(d => { const r = rows.find(x => x.week === w && x.domain === d); return r ? round100(r.visits * kd(d)) : ''; }))));
+  download('competitor-weekly-visits-' + stamp() + '.xlsx', [['Weekly visits', aoa], ['Notes', notesSheet()]]);
+};
+$('dl-table').onclick = () => {
+  if (!tblData){ setStatus('Sign in to load the data first.', true); return; }
+  download('competitor-latest-week-' + stamp() + '.xlsx', [['Latest week', tblData], ['Notes', notesSheet([['Week starting', tblData.latest]])]]);
+};
+$('dl-spend').onclick = () => {
+  if (!spendData){ setStatus('Sign in and load the channel mix first.', true); return; }
+  download('competitor-paid-search-spend-' + stamp() + '.xlsx', [['Paid search spend', spendData], ['Notes', notesSheet([
+    ['Period', spendData.period],
+    ['Cost per paid visit (GBP)', cpc('cpc-mid') || DEFAULT_CPC.mid],
+    ['Method', 'Visits x adjustment factor x UK share x paid search share x cost per paid visit. Our own site shows actual Google Ads spend instead of an estimate.']
+  ])]]);
+};
 
 /* ---------- Method section (static, no sign-in needed) ---------- */
 function drawCalibration(){
