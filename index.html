@@ -119,21 +119,18 @@
   <h2 id="spend-h">Estimated paid search spend</h2>
   <p class="sub" id="spend-sub">Sign in to see the estimates.</p>
   <div class="cpcs">
-    <span>Cost per paid visit:</span>
-    <label>Low <input id="cpc-lo" type="number" step="0.01" min="0.01" value="0.53"></label>
-    <label>Central <input id="cpc-mid" type="number" step="0.01" min="0.01" value="0.72"></label>
-    <label>High <input id="cpc-hi" type="number" step="0.01" min="0.01" value="0.91"></label>
-    <button class="linkbtn" id="cpc-reset">Reset costs</button>
+    <label>Cost per paid visit <input id="cpc-mid" type="number" step="0.01" min="0.01" value="0.72"></label>
+    <button class="linkbtn" id="cpc-reset">Reset to &pound;0.72</button>
   </div>
   <div class="tablewrap">
     <table id="spendtbl">
       <thead><tr>
-        <th>Site</th><th>Paid search share</th><th>UK share</th><th>Paid search visits</th><th>Low</th><th>Central</th><th>High</th><th>Central per week</th><th>Actual spend (our Google Ads)</th>
+        <th>Site</th><th>Paid search share</th><th>UK share</th><th>Paid search visits</th><th>Estimated spend</th><th>Estimated average weekly spend</th><th>Actual spend (our Google Ads)</th>
       </tr></thead>
       <tbody></tbody>
     </table>
   </div>
-  <div class="note">Estimates of paid search only (Search, Shopping and Performance Max). Display and paid social are not included. Read these as a range, not a budget.</div>
+  <div class="note">Estimates of paid search only (Search, Shopping and Performance Max). Display and paid social are not included. Read these as estimates, not budgets.</div>
 </section>
 
 <section aria-labelledby="method-h">
@@ -178,17 +175,17 @@
 
 <section aria-labelledby="spendmethod-h">
   <h2 id="spendmethod-h">How the spend estimate is calculated</h2>
-  <p class="sub">Similarweb tells us how many visits come from paid search. We price those visits using what a click costs us.</p>
-  <div class="formula"><strong>Spend</strong> = visits for the period &times; adjustment factor &times; UK share &times; paid search share &times; cost per click</div>
+  <p class="sub">Similarweb tells us how many visits come from paid search. We price those visits using what a paid visit costs us.</p>
+  <div class="formula"><strong>Spend</strong> = visits for the period &times; adjustment factor &times; UK share &times; paid search share &times; cost per paid visit</div>
   <ol>
     <li><strong>Visits:</strong> the weekly Similarweb visits for 1 Jul to 30 Sep 2026, added together, then multiplied by the adjustment factor above.</li>
     <li><strong>UK share:</strong> the share of each site's audience that is in the UK, from Similarweb. We keep only that part.</li>
-    <li><strong>Paid search share:</strong> the share of each site's visits that arrive through paid search, from Similarweb's Marketing Channels report for the same period. This gives the number of paid clicks.</li>
-    <li><strong>Cost per paid visit:</strong> what a paid search visit costs. We use three figures, explained below.</li>
+    <li><strong>Paid search share:</strong> the share of each site's visits that arrive through paid search, from Similarweb's Marketing Channels report for the same period. This gives the number of paid search visits.</li>
+    <li><strong>Cost per paid visit:</strong> we use <strong>&pound;0.72</strong>, which you can change in the box above the table. The two figures below explain where it comes from.</li>
   </ol>
-  <p><strong>Low, &pound;0.53.</strong> The average we paid per click on Search, Shopping and Performance Max in Google Ads over the same dates. Our brand search cost &pound;0.16 a click, and our non-brand Shopping and Performance Max campaigns cost &pound;0.70 to &pound;0.79.</p>
-  <p><strong>High, &pound;0.91.</strong> We ran the method on our own site as a test. Using &pound;0.53 a click came out about 40% below what we actually spent, because Google Ads records about 1.7 clicks for every paid visit Similarweb counts for us. Our real spend divided by Similarweb's paid visits for us is &pound;0.91.</p>
-  <p><strong>Central, &pound;0.72.</strong> Halfway between the two. We keep it below the calibrated figure because some competitors sell categories that are cheaper to bid on than sofas.</p>
+  <p><strong>&pound;0.53, the cost per click.</strong> The average we paid per click on Search, Shopping and Performance Max in Google Ads over the same dates. Our brand search cost &pound;0.16 a click, and our non-brand Shopping and Performance Max campaigns cost &pound;0.70 to &pound;0.79.</p>
+  <p><strong>&pound;0.91, calibrated on our own site.</strong> We ran the method on our own site as a test. Using &pound;0.53 a click came out about 40% below what we actually spent, because Google Ads records about 1.7 clicks for every paid visit Similarweb counts for us. Our real spend divided by Similarweb's paid visits for us is &pound;0.91.</p>
+  <p><strong>&pound;0.72, the figure we use.</strong> Halfway between the two. We keep it below the calibrated figure because some competitors sell categories that are cheaper to bid on than sofas. For our own site we show the actual spend instead of an estimate.</p>
   <p>We left out our YouTube and Demand Gen spend, because those are priced per view.</p>
   <h3 style="font-size:17px;margin:16px 0 4px">What to bear in mind</h3>
   <ul>
@@ -225,7 +222,7 @@ let weeks = [], domains = [];
 let colours = {}, visible = new Set();
 let mode = 'adj';
 let mix = [], mixError = null;
-const DEFAULT_CPC = {lo:0.53, mid:0.72, hi:0.91};
+const DEFAULT_CPC = {mid:0.72};
 let trendChart = null, calChart = null;
 
 const $ = id => document.getElementById(id);
@@ -360,12 +357,12 @@ function drawSpend(){
     $('spend-sub').textContent = mixError ? 'Could not load the channel mix table: ' + mixError : 'No channel mix data yet. Upload it to competitor_traffic.channel_mix.';
     return;
   }
-  const lo = cpc('cpc-lo') || DEFAULT_CPC.lo, mid = cpc('cpc-mid') || DEFAULT_CPC.mid, hi = cpc('cpc-hi') || DEFAULT_CPC.hi;
+  const mid = cpc('cpc-mid') || DEFAULT_CPC.mid;
   const list = mix.map(m => {
     const w = rows.filter(r => r.domain === m.domain && r.week >= m.start && r.week <= m.end);
     const visits = w.reduce((a,r) => a + r.visits, 0);
     const paidVisits = visits * factor() * (m.uk/100) * (m.paid/100);
-    return {d:m.domain, actual:m.actual, paid:m.paid, uk:m.uk, pv:paidVisits, lo:paidVisits*lo, mid:paidVisits*mid, hi:paidVisits*hi, weeks:w.length};
+    return {d:m.domain, actual:m.actual, paid:m.paid, uk:m.uk, pv:paidVisits, mid:paidVisits*mid, weeks:w.length};
   }).filter(r => r.weeks > 0).sort((a,b) => b.mid - a.mid);
   const max = Math.max(...list.map(r => r.mid), 1);
   const m0 = mix[0];
@@ -373,7 +370,10 @@ function drawSpend(){
   list.forEach(r => {
     const tr = document.createElement('tr'); if (r.d === US) tr.className = 'us';
     tr.innerHTML = '<td>' + r.d + '</td><td>' + r.paid.toFixed(1) + '%</td><td>' + r.uk.toFixed(0) + '%</td><td>' + num(r.pv) + '</td>' +
-      '<td>' + money(r.lo) + '</td><td><span class="bar" style="width:' + Math.round(r.mid/max*80) + 'px"></span><strong>' + money(r.mid) + '</strong></td><td>' + money(r.hi) + '</td><td>' + money(r.mid/r.weeks) + '</td><td>' + (r.actual ? money(r.actual) : '') + '</td>';
+      (r.actual
+        ? '<td></td><td></td>'
+        : '<td><span class="bar" style="width:' + Math.round(r.mid/max*80) + 'px"></span><strong>' + money(r.mid) + '</strong></td><td>' + money(r.mid/r.weeks) + '</td>') +
+      '<td>' + (r.actual ? '<strong>' + money(r.actual) + '</strong>' : '') + '</td>';
     tb.appendChild(tr);
   });
 }
@@ -407,8 +407,8 @@ function setMode(m){
 $('m-adj').onclick = () => setMode('adj');
 $('m-raw').onclick = () => setMode('raw');
 $('factor').addEventListener('input', () => { if (rows.length){ if (mode === 'adj') render(); drawSpend(); } });
-['cpc-lo','cpc-mid','cpc-hi'].forEach(id => $(id).addEventListener('input', () => { if (mix.length) drawSpend(); }));
-$('cpc-reset').onclick = () => { $('cpc-lo').value = DEFAULT_CPC.lo.toFixed(2); $('cpc-mid').value = DEFAULT_CPC.mid.toFixed(2); $('cpc-hi').value = DEFAULT_CPC.hi.toFixed(2); if (mix.length) drawSpend(); };
+$('cpc-mid').addEventListener('input', () => { if (mix.length) drawSpend(); });
+$('cpc-reset').onclick = () => { $('cpc-mid').value = DEFAULT_CPC.mid.toFixed(2); if (mix.length) drawSpend(); };
 $('reset').onclick = () => { $('factor').value = DEFAULT_FACTOR.toFixed(2); if (rows.length){ if (mode === 'adj') render(); drawSpend(); } };
 
 drawCalibration();
