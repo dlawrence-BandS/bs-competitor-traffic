@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Competitor traffic | Barker &amp; Stonehouse</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+  :root{
+    --ivory:#F7F3EA; --paper:#FFFDF8; --ink:#1B2A3A; --muted:#5C6773; --line:#E2DACB;
+    --brass:#A47C3B; --brass-dark:#7E5E27; --teal:#2A7F7F; --warn:#9A3B2E;
+    --serif:'Playfair Display',Georgia,serif; --sans:'Source Sans 3',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{scroll-padding-top:16px}
+  body{margin:0;background:var(--ivory);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.55}
+  .wrap{max-width:1180px;margin:0 auto;padding:32px 24px 64px}
+  header{display:flex;flex-wrap:wrap;gap:16px;justify-content:space-between;align-items:flex-end;border-bottom:2px solid var(--brass);padding-bottom:20px;margin-bottom:28px}
+  h1{font-family:var(--serif);font-weight:700;font-size:clamp(28px,4vw,42px);line-height:1.1;margin:0 0 6px}
+  header p{margin:0;color:var(--muted);max-width:60ch}
+  h2{font-family:var(--serif);font-weight:500;font-size:24px;margin:0 0 4px}
+  .sub{color:var(--muted);margin:0 0 16px;font-size:15px}
+  button{font:inherit;cursor:pointer}
+  button:focus-visible,input:focus-visible{outline:3px solid var(--teal);outline-offset:2px}
+  .signin{background:var(--ink);color:#fff;border:0;padding:10px 20px;border-radius:4px;font-weight:600}
+  .signin:hover{background:#2c4157}
+  .status{font-size:14px;color:var(--muted)}
+  .status.err{color:var(--warn)}
+  section{background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:24px;margin-bottom:24px}
+  .controls{display:flex;flex-wrap:wrap;gap:20px 32px;align-items:center;margin-bottom:18px}
+  .seg{display:inline-flex;border:1px solid var(--ink);border-radius:4px;overflow:hidden}
+  .seg button{background:transparent;border:0;padding:8px 16px;color:var(--ink)}
+  .seg button[aria-pressed="true"]{background:var(--ink);color:#fff}
+  .factor{display:flex;align-items:center;gap:8px;font-size:15px}
+  .factor input{width:72px;padding:7px 8px;border:1px solid var(--ink);border-radius:4px;font:inherit;background:#fff}
+  .linkbtn{background:none;border:0;color:var(--brass-dark);text-decoration:underline;padding:0;font-size:14px}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+  .chip{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:#fff;border-radius:999px;padding:5px 12px;font-size:14px}
+  .chip[aria-pressed="false"]{opacity:.45}
+  .chip i{width:12px;height:12px;border-radius:50%;display:inline-block}
+  .chartbox{position:relative;height:420px}
+  .chartbox.small{height:240px}
+  .tablewrap{overflow-x:auto}
+  table{border-collapse:collapse;width:100%;min-width:620px;font-variant-numeric:tabular-nums}
+  th,td{padding:10px 12px;text-align:right;border-bottom:1px solid var(--line);font-size:15px}
+  th:first-child,td:first-child{text-align:left}
+  th{font-weight:600;color:var(--muted);font-size:14px}
+  tr.us td{background:#F3EBDA;font-weight:600}
+  .up{color:#2F6B4A}.down{color:var(--warn)}
+  .method{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:32px}
+  .method ol,.method ul{padding-left:20px;margin:8px 0 16px}
+  .method li{margin-bottom:6px}
+  .stat{display:flex;gap:24px;flex-wrap:wrap;margin:12px 0 16px}
+  .stat div{border-left:3px solid var(--brass);padding-left:12px}
+  .stat b{display:block;font-family:var(--serif);font-size:28px;line-height:1.1}
+  .stat span{font-size:14px;color:var(--muted)}
+  .note{background:#F3EBDA;border-left:3px solid var(--brass);padding:12px 16px;font-size:15px;margin:12px 0}
+  footer{color:var(--muted);font-size:13px;margin-top:8px}
+  @media (max-width:820px){.method{grid-template-columns:1fr}.chartbox{height:320px}}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div>
+    <h1>Competitor traffic</h1>
+    <p>Weekly visits to competitor websites, estimated by Similarweb and adjusted to match what Google Analytics records for our own site.</p>
+  </div>
+  <div style="text-align:right">
+    <button class="signin" id="signin">Sign in with Google</button>
+    <div class="status" id="status" role="status" aria-live="polite">Sign in to load the data.</div>
+  </div>
+</header>
+
+<section aria-labelledby="trend-h">
+  <h2 id="trend-h">Weekly visits by site</h2>
+  <p class="sub" id="trend-sub">Weeks run Wednesday to Tuesday. Figures are rounded to the nearest 100.</p>
+
+  <div class="controls">
+    <div class="seg" role="group" aria-label="Choose which figures to show">
+      <button id="m-adj" aria-pressed="true">Adjusted</button>
+      <button id="m-raw" aria-pressed="false">Similarweb raw</button>
+    </div>
+    <label class="factor">Adjustment factor
+      <input id="factor" type="number" step="0.01" min="0.3" max="1.5" value="0.90">
+      <button class="linkbtn" id="reset">Reset to 0.90</button>
+    </label>
+  </div>
+
+  <div class="chips" id="chips" aria-label="Choose which sites to show"></div>
+  <div class="chartbox"><canvas id="trend" role="img" aria-label="Line chart of weekly visits for each site"></canvas></div>
+</section>
+
+<section aria-labelledby="table-h">
+  <h2 id="table-h">Latest week compared</h2>
+  <p class="sub" id="table-sub">Sign in to see the comparison.</p>
+  <div class="tablewrap">
+    <table id="tbl">
+      <thead><tr>
+        <th>Site</th><th>Visits, latest week</th><th>Change on previous week</th><th>Average per week</th><th>Size compared with B&amp;S</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</section>
+
+<section aria-labelledby="method-h">
+  <h2 id="method-h">How the adjustment is calculated</h2>
+  <p class="sub">Similarweb models traffic from a sample of devices, so its numbers are estimates. We have one site where we know the real figure: our own.</p>
+  <div class="method">
+    <div>
+      <ol>
+        <li>Export weekly visits for barkerandstonehouse.co.uk from Similarweb.</li>
+        <li>Pull our real weekly sessions from GA4 for the same 13 weeks (1 Jul to 23 Sep 2026), using the same Wednesday week starts.</li>
+        <li>For each week, divide GA4 sessions by the Similarweb estimate. A result of 0.90 means Similarweb overstated our traffic by about 10%.</li>
+        <li>Take the average across the weeks, then multiply every competitor's Similarweb figure by it.</li>
+      </ol>
+      <div class="stat">
+        <div><b>0.89</b><span>Average factor</span></div>
+        <div><b>0.92</b><span>Median factor</span></div>
+        <div><b>0.69 to 1.00</b><span>Weekly range</span></div>
+      </div>
+      <p>We round the average up to <strong>0.90</strong>, which is the default above. You can change it in the box at the top, and the charts and table update straight away.</p>
+      <div class="note">Treat adjusted numbers as a guide, not a count. The week-on-week trend and the gap between sites are more reliable than any single figure.</div>
+      <h3 style="font-size:17px;margin:16px 0 4px">What to bear in mind</h3>
+      <ul>
+        <li>We assume Similarweb is out by the same proportion for competitors as it is for us. Its estimates tend to be better for larger sites.</li>
+        <li>GA4 misses visitors who decline cookies, so some of the 10% gap may be GA4 undercounting. The true factor could sit closer to 1.</li>
+        <li>The factor drifted down in September (0.69 in the week of 16 Sep). Check it again when we add more weeks.</li>
+        <li>Similarweb data is Worldwide. The competitors tracked only trade in the UK, so we treat it as UK traffic.</li>
+        <li>The latest part-week is left out, because it would look like a collapse in traffic.</li>
+      </ul>
+    </div>
+    <div>
+      <div class="chartbox small"><canvas id="calchart" role="img" aria-label="Calibration factor by week"></canvas></div>
+      <div class="tablewrap" style="margin-top:16px">
+        <table id="caltbl" style="min-width:0">
+          <thead><tr><th>Week of</th><th>Similarweb</th><th>GA4 sessions</th><th>Factor</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <footer>Calibration snapshot taken 14 Oct 2026 for barkerandstonehouse.co.uk. Re-run it when you add new weeks.</footer>
+    </div>
+  </div>
+</section>
+
+<footer>Source: BigQuery table competitor_traffic.weekly_estimates (Similarweb weekly exports). Weeks start on Wednesdays.</footer>
+</div>
+
+<script>
+const PROJECT = 'commanding-air-450109-p0';
+const TABLE = '`commanding-air-450109-p0.competitor_traffic.weekly_estimates`';
+const CLIENT_ID = '46227372300-rk63ag0caqgd7n12gjd0nt7f2qi7llqr.apps.googleusercontent.com';
+const SCOPE = 'https://www.googleapis.com/auth/bigquery.readonly';
+const US = 'barkerandstonehouse.co.uk';
+const DEFAULT_FACTOR = 0.90;
+const PALETTE = ['#1F3A5F','#2A7F7F','#B5543A','#6B7C93','#7A4E6B','#7D8A3B','#4E8FC4','#8E2F46','#2F6B4A','#C9A15A','#555555','#9B6BB0'];
+
+// Calibration snapshot: Similarweb visits vs GA4 sessions for barkerandstonehouse.co.uk
+const CAL = [
+ ['2026-07-01',96622,81083],['2026-07-08',88051,81321],['2026-07-15',86747,86145],['2026-07-22',93527,92629],
+ ['2026-07-29',92873,89791],['2026-08-05',99175,92916],['2026-08-12',102809,93053],['2026-08-19',116104,108636],
+ ['2026-08-26',125528,125360],['2026-09-02',92453,76840],['2026-09-09',86512,73163],['2026-09-16',109625,75324],
+ ['2026-09-23',140902,106310]
+];
+
+let token = null, tokenClient = null;
+let rows = [];            // {week, domain, visits}
+let weeks = [], domains = [];
+let colours = {}, visible = new Set();
+let mode = 'adj';
+let trendChart = null, calChart = null;
+
+const $ = id => document.getElementById(id);
+const fmtDate = s => new Date(s + 'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+const round100 = n => Math.round(n/100)*100;
+const num = n => round100(n).toLocaleString('en-GB');
+const factor = () => { const f = parseFloat($('factor').value); return isFinite(f) && f > 0 ? f : DEFAULT_FACTOR; };
+const scale = () => mode === 'adj' ? factor() : 1;
+
+function setStatus(msg, isErr){ const s = $('status'); s.textContent = msg; s.className = 'status' + (isErr ? ' err' : ''); }
+
+/* ---------- Auth and data ---------- */
+function initAuth(){
+  if (!window.google || !google.accounts){ setTimeout(initAuth, 300); return; }
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: CLIENT_ID, scope: SCOPE,
+    callback: resp => {
+      if (resp.error){ setStatus('Sign-in failed: ' + resp.error + '. Try again.', true); return; }
+      token = resp.access_token; $('signin').textContent = 'Refresh data'; load();
+    }
+  });
+}
+$('signin').addEventListener('click', () => {
+  if (!tokenClient){ setStatus('Google sign-in is still loading. Try again in a moment.', true); return; }
+  if (token) load(); else tokenClient.requestAccessToken();
+});
+
+async function runQuery(sql){
+  const r = await fetch('https://bigquery.googleapis.com/bigquery/v2/projects/' + PROJECT + '/queries', {
+    method:'POST',
+    headers:{Authorization:'Bearer ' + token,'Content-Type':'application/json'},
+    body: JSON.stringify({query:sql,useLegacySql:false,location:'europe-west2',timeoutMs:30000,maxResults:10000})
+  });
+  const j = await r.json();
+  if (j.error){
+    if (j.error.code === 401){ token = null; $('signin').textContent = 'Sign in with Google'; }
+    throw new Error(j.error.message);
+  }
+  if (!j.jobComplete) throw new Error('The query is still running. Click Refresh data in a few seconds.');
+  const names = j.schema.fields.map(f => f.name);
+  return (j.rows || []).map(row => Object.fromEntries(row.f.map((c,i) => [names[i], c.v])));
+}
+
+async function load(){
+  setStatus('Loading data from BigQuery...');
+  try {
+    const data = await runQuery(
+      'SELECT CAST(week_start AS STRING) AS week_start, domain, MAX(est_visits) AS est_visits ' +
+      'FROM ' + TABLE + " WHERE source = 'similarweb' GROUP BY week_start, domain ORDER BY week_start, domain");
+    rows = data.map(d => ({week:d.week_start, domain:d.domain, visits:Number(d.est_visits)}));
+    if (!rows.length){ setStatus('The table has no rows yet. Upload a Similarweb export first.', true); return; }
+    weeks = [...new Set(rows.map(r => r.week))].sort();
+    domains = [...new Set(rows.map(r => r.domain))].sort((a,b) => a === US ? -1 : b === US ? 1 : a.localeCompare(b));
+    let i = 0;
+    domains.forEach(d => { colours[d] = d === US ? '#A47C3B' : PALETTE[i++ % PALETTE.length]; });
+    if (!visible.size) visible = new Set(domains);
+    buildChips(); render();
+    setStatus(domains.length + ' sites, ' + weeks.length + ' weeks, latest week starting ' + fmtDate(weeks[weeks.length-1]) + '.');
+  } catch(e){ setStatus(e.message, true); }
+}
+
+/* ---------- Rendering ---------- */
+function buildChips(){
+  const box = $('chips'); box.innerHTML = '';
+  domains.forEach(d => {
+    const b = document.createElement('button');
+    b.className = 'chip'; b.setAttribute('aria-pressed', visible.has(d));
+    b.innerHTML = '<i style="background:' + colours[d] + '"></i>' + d;
+    b.onclick = () => { visible.has(d) ? visible.delete(d) : visible.add(d); b.setAttribute('aria-pressed', visible.has(d)); render(); };
+    box.appendChild(b);
+  });
+}
+
+function render(){ drawTrend(); drawTable(); }
+
+function drawTrend(){
+  const k = scale();
+  const datasets = domains.filter(d => visible.has(d)).map(d => ({
+    label: d,
+    data: weeks.map(w => { const r = rows.find(x => x.week === w && x.domain === d); return r ? round100(r.visits * k) : null; }),
+    borderColor: colours[d], backgroundColor: colours[d],
+    borderWidth: d === US ? 4 : 2, pointRadius: d === US ? 3 : 2, tension: .25, spanGaps: true
+  }));
+  const cfg = {
+    type:'line', data:{labels: weeks.map(fmtDate), datasets},
+    options:{responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
+      plugins:{legend:{display:false}, tooltip:{callbacks:{label:c => ' ' + c.dataset.label + ': ' + c.parsed.y.toLocaleString('en-GB')}}},
+      scales:{y:{beginAtZero:true, title:{display:true,text: mode === 'adj' ? 'Adjusted visits per week' : 'Similarweb visits per week'}, ticks:{callback:v => v >= 1000 ? (v/1000) + 'k' : v}},
+              x:{title:{display:true,text:'Week starting'}}}}
+  };
+  if (trendChart) trendChart.destroy();
+  trendChart = new Chart($('trend'), cfg);
+}
+
+function drawTable(){
+  const k = scale(), last = weeks[weeks.length-1], prev = weeks[weeks.length-2];
+  const get = (d,w) => { const r = rows.find(x => x.week === w && x.domain === d); return r ? r.visits * k : null; };
+  const bs = get(US, last);
+  const list = domains.map(d => {
+    const vs = weeks.map(w => get(d,w)).filter(v => v !== null);
+    const l = get(d,last), p = prev ? get(d,prev) : null;
+    return {d, l, chg: (l !== null && p) ? (l/p - 1) : null, avg: vs.reduce((a,b)=>a+b,0)/vs.length};
+  }).sort((a,b) => (b.l||0) - (a.l||0));
+  $('table-sub').textContent = 'Week starting ' + fmtDate(last) + (mode === 'adj' ? ', adjusted by ' + factor().toFixed(2) + '.' : ', Similarweb raw figures.');
+  const tb = $('tbl').querySelector('tbody'); tb.innerHTML = '';
+  list.forEach(r => {
+    const tr = document.createElement('tr'); if (r.d === US) tr.className = 'us';
+    const chg = r.chg === null ? '' : '<span class="' + (r.chg >= 0 ? 'up' : 'down') + '">' + (r.chg >= 0 ? '+' : '') + (r.chg*100).toFixed(1) + '%</span>';
+    const size = r.d === US ? '' : (bs && r.l ? (r.l/bs).toFixed(1) + 'x' : '');
+    tr.innerHTML = '<td>' + r.d + '</td><td>' + (r.l ? num(r.l) : '') + '</td><td>' + chg + '</td><td>' + num(r.avg) + '</td><td>' + size + '</td>';
+    tb.appendChild(tr);
+  });
+}
+
+/* ---------- Method section (static, no sign-in needed) ---------- */
+function drawCalibration(){
+  const tb = $('caltbl').querySelector('tbody');
+  CAL.forEach(([w,sw,ga]) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + fmtDate(w) + '</td><td>' + sw.toLocaleString('en-GB') + '</td><td>' + ga.toLocaleString('en-GB') + '</td><td>' + (ga/sw).toFixed(2) + '</td>';
+    tb.appendChild(tr);
+  });
+  calChart = new Chart($('calchart'), {
+    type:'line',
+    data:{labels:CAL.map(c => fmtDate(c[0])), datasets:[
+      {label:'Factor (GA4 / Similarweb)', data:CAL.map(c => +(c[2]/c[1]).toFixed(3)), borderColor:'#A47C3B', backgroundColor:'#A47C3B', borderWidth:3, pointRadius:3, tension:.25},
+      {label:'Default 0.90', data:CAL.map(() => 0.9), borderColor:'#1B2A3A', borderDash:[6,4], borderWidth:1.5, pointRadius:0}
+    ]},
+    options:{responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom'}},
+      scales:{y:{min:0.5,max:1.1,title:{display:true,text:'GA4 sessions / Similarweb visits'}}, x:{title:{display:true,text:'Week starting'}}}}
+  });
+}
+
+/* ---------- Controls ---------- */
+function setMode(m){
+  mode = m;
+  $('m-adj').setAttribute('aria-pressed', m === 'adj'); $('m-raw').setAttribute('aria-pressed', m === 'raw');
+  if (rows.length) render();
+}
+$('m-adj').onclick = () => setMode('adj');
+$('m-raw').onclick = () => setMode('raw');
+$('factor').addEventListener('input', () => { if (rows.length && mode === 'adj') render(); });
+$('reset').onclick = () => { $('factor').value = DEFAULT_FACTOR.toFixed(2); if (rows.length && mode === 'adj') render(); };
+
+drawCalibration();
+initAuth();
+</script>
+</body>
+</html>
